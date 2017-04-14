@@ -1,26 +1,30 @@
 //Emily Palmieri
-//Tree and forest
-//9-29-2014
-// Base code: unit3-teapot-demo.js
+//Disco Forest
+//4-14-2017
 
-////////////////////////////////////////////////////////////////////////////////
-// Teapot demo (unit 3): focus is on illumination model and shading
-////////////////////////////////////////////////////////////////////////////////
 /*global THREE, requestAnimationFrame, dat, window */
 
 var camera, scene, renderer;
 var cameraControls;
 var effectController;
 var clock = new THREE.Clock();
-var teapotSize = 400;
-var tess = -1;	// force initialization
 var wire;
-var flat;
-var phong;
 var ambientLight;
-var discoBall;
+var discoBall = null;
 var spotlight, hue;
 
+// Forest variables
+var numTrees = 1;
+var bottomRadius = 50;
+var maxRadius = 200;
+var useRandomRadii = false;
+var totalLayers = 4;
+var branchReduction = 0.5;
+var randomRotation = 10;
+var treeSpacing = 800;
+var treeSpacingRandomness = 500;
+
+// Initialize the demonstration
 function init() {
 	var canvasWidth = window.innerWidth;
 	var canvasHeight = window.innerHeight;
@@ -57,33 +61,10 @@ function init() {
 
 }
 
-// EVENT HANDLERS
-
-function onWindowResize() {
-
-	var canvasWidth = window.innerWidth;
-	var canvasHeight = window.innerHeight;
-
-	renderer.setSize( canvasWidth, canvasHeight );
-
-	camera.aspect = canvasWidth/ canvasHeight;
-	camera.updateProjectionMatrix();
-
-}
-
+// Setup the controls in the upper right
 function setupGui() {
 
 	effectController = {
-
-		shininess: 100.0,
-		ka: 0.2,
-		kd: 0.7,
-		ks: 0.7,
-		metallic: false,
-
-		hue:		0.09,
-		saturation: 0.46,
-		lightness:  0.9,
 
 		lhue:        0.04,
 		lsaturation: 0.01,	// so that fractions will be shown
@@ -94,10 +75,15 @@ function setupGui() {
 		lx: 0.32,
 		ly: 0.39,
 		lz: 0.7,
-		newTess: 6,
-		newFlat: false,
-		newPhong: true,
-		newWire: false
+		
+		numTrees: numTrees,
+		bottomRadius: bottomRadius,
+		useRandomRadii: useRandomRadii,
+		totalLayers: totalLayers,
+		branchReduction: branchReduction,
+		randomRotation: randomRotation,
+		treeSpacing: treeSpacing,
+		treeSpacingRandomness: treeSpacingRandomness
 	};
 
 	var h;
@@ -121,10 +107,35 @@ function setupGui() {
 	h.add( effectController, "lx", -1.0, 1.0, 0.025 ).name("x");
 	h.add( effectController, "ly", -1.0, 1.0, 0.025 ).name("y");
 	h.add( effectController, "lz", -1.0, 1.0, 0.025 ).name("z");
+	
+	h = gui.addFolder( "Trees" );
+	
+	h.add( effectController, "numTrees", 1, 6).step(1);
+	h.add( effectController, "bottomRadius", 50, maxRadius).step(10);
+	h.add( effectController, "useRandomRadii");
+	h.add( effectController, "totalLayers", 1, 4).step(1);
+	h.add( effectController, "branchReduction", 0.2, 0.8).step(0.1);
+	h.add( effectController, "randomRotation", 10, 90).step(5);
+	h.add( effectController, "treeSpacing", 100, 1000).step(50);
+	h.add( effectController, "treeSpacingRandomness", 0, 1000).step(50);
 }
 
+// Resize the application when the user resizes their browser
+function onWindowResize() {
 
-//
+	var canvasWidth = window.innerWidth;
+	var canvasHeight = window.innerHeight;
+
+	renderer.setSize( canvasWidth, canvasHeight );
+
+	camera.aspect = canvasWidth/ canvasHeight;
+	camera.updateProjectionMatrix();
+
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//Animation methods
+///////////////////////////////////////////////////////////////////////////////
 
 function animate() {
 
@@ -138,12 +149,24 @@ function render() {
 	var delta = clock.getDelta();
 
 	cameraControls.update( delta );
-	if ( effectController.newTess !== tess || effectController.newFlat !== flat || effectController.newPhong !== phong || effectController.newWire !== wire)
+	if ( effectController.numTrees !== numTrees || 
+			effectController.bottomRadius !== bottomRadius || 
+			effectController.useRandomRadii !== useRandomRadii ||
+			effectController.totalLayers !== totalLayers || 
+			effectController.branchReduction !== branchReduction ||
+			effectController.randomRotation !== randomRotation ||
+			effectController.treeSpacing !== treeSpacing ||
+			effectController.treeSpacingRandomness != treeSpacingRandomness ||
+			discoBall == null)
 	{
-		tess = effectController.newTess;
-		flat = effectController.newFlat;
-		phong = effectController.newPhong;
-		wire = effectController.newWire;
+		numTrees = effectController.numTrees;
+		bottomRadius = effectController.bottomRadius;
+		useRandomRadii = effectController.useRandomRadii;
+		totalLayers = effectController.totalLayers;
+		branchReduction = effectController.branchReduction;
+		randomRotation = effectController.randomRotation;
+		treeSpacing = effectController.treeSpacing;
+		treeSpacingRandomness = effectController.treeSpacingRandomness;
 
 		fillScene();
 	}
@@ -175,28 +198,8 @@ function render() {
 
 }
 
-function createShaderMaterial( id, light, ambientLight ) {
-
-	var shader = THREE.ShaderTypes[ id ];
-
-	var u = THREE.UniformsUtils.clone( shader.uniforms );
-
-	var vs = shader.vertexShader;
-	var fs = shader.fragmentShader;
-
-	var material = new THREE.ShaderMaterial( { uniforms: u, vertexShader: vs, fragmentShader: fs } );
-
-	material.uniforms.uDirLightPos.value = light.position;
-	material.uniforms.uDirLightColor.value = light.color;
-
-	material.uniforms.uAmbientLightColor.value = ambientLight.color;
-
-	return material;
-
-}
-
 ///////////////////////////////////////////////////////////////////////////////
-//Constructor methods and attributes
+//Scene constructor methods and attributes
 ///////////////////////////////////////////////////////////////////////////////
 
 // Materials
@@ -205,11 +208,10 @@ var treeMaterial = new THREE.MeshLambertMaterial({
   });  
 var leafMaterial = new THREE.MeshLambertMaterial({ color: 0x00DD00, ambient : 0x00DD00 });
 
+// Fill the scene with objects
 function fillScene() {
 	scene = new THREE.Scene();
 	//scene.fog = new THREE.Fog( 0x808080, 2000, 4000 );
-
-    var maxTreeBase = 50;
     
 	// LIGHTS
 
@@ -218,8 +220,14 @@ function fillScene() {
     
     // Disco ball
     var ballCast = false;
-    createDiscoBall(maxTreeBase, ballCast);
+    var treeRadius = bottomRadius;
+    if (useRandomRadii) {
+    	treeRadius = maxRadius;
+    }
+    createDiscoBall(treeRadius, ballCast);
+    
     scene.add(discoBall);
+    
     if (!ballCast) {
         var treeShadow = new THREE.DirectionalLight( 0xFFFFFF, 1);
         treeShadow.position.set(0,4500,0);
@@ -257,42 +265,41 @@ function fillScene() {
     
     scene.add( solidGround );
     
-    // SET VARIABLES HERE
+    var forest;
+    if (useRandomRadii) {
+    	// (numTrees - the number of trees to generate for the forest
+        // totalLayers - the number of times to branch from branches
+        // H - the amount to reduce the height of the branch by each iteration
+        // rotateRand - the maximum or minimum amount a branch can rotate randomly from its starting rotation)
+        forest = createRandomForest(numTrees, totalLayers, branchReduction, randomRotation);
+    }
+    else {
+    	// (numTrees - the number of trees to generate for the forest
+        //  bottomRadius - the starting bottom radius of all the trees
+        //  totalLayers - the number of times to branch from branches
+        //  H - Determines the amount to reduce the height of the branch by each iteration
+        //  rotateRand - the maximum or minimum amount a branch can rotate randomly from its starting rotation)
+        forest = createUniformForest(numTrees, bottomRadius, totalLayers, branchReduction, randomRotation);
+    }    
     
-    // SET UNIFORM FOREST VARIABLES HERE
-    // (numTrees - the number of trees to generate for the forest
-    //  bottomRadius - the starting bottom radius of all the trees
-    //  height - the starting height of all the trees
-    //  totalLayers - the number of times to branch from branches
-    //  H - Determines the amount to reduce the height of the branch by each iteration
-    //  rotateRand - the maximum or minimum amount a branch can rotate randomly from its starting rotation)
-    var forest = createUniformForest(1, maxTreeBase, 4, 0.5, 10);
-    
-    // SET RANDOM FOREST VARIABLES HERE
-    // (numTrees - the number of trees to generate for the forest
-    // totalLayers - the number of times to branch from branches
-    // H - the amount to reduce the height of the branch by each iteration
-    // rotateRand - the maximum or minimum amount a branch can rotate randomly from its starting rotation)
-    //var forest = createRandomForest(5, 5, 0.5, 10);
-    
-    // SET LAYOUT VARIABLES HERE
     // (forest - the list of trees to layout
     // maxTreeSpacing - the starting distance to place the trees from one another
     // p - determines the random value to add to the tree's x and z position, (Math.random() * p * 2) - p)
-    //layoutForestGrid(forest, 800, 500);
-    layoutTree(forest);
+    layoutForestGrid(forest, treeSpacing, treeSpacingRandomness);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-//Lighting methods
+//Disco ball building methods
 ///////////////////////////////////////////////////////////////////////////////
 
+// Create the disco ball mesh and lighting
+// treeBase - The radius of the trees at their base
+// castShadows - True if the disco ball lights should cast shadows
 function createDiscoBall(treeBase, castShadows) {
     discoBall = new THREE.Object3D();
     discoBall.layers = [];
     discoBall.layers.push(createDiscoBallLayer(4, treeBase, castShadows));
     discoBall.layers.push(createDiscoBallLayer(8, treeBase, castShadows));
-    console.log(discoBall.children.length);
     
     var ballGeometry = new THREE.SphereGeometry(50, 32, 16);
     var ballMaterial = new THREE.MeshPhongMaterial({
@@ -306,6 +313,10 @@ function createDiscoBall(treeBase, castShadows) {
     discoBall.position.set(0,30 * treeBase,0);
 }
 
+// Create a layer of spinning disco ball lights
+// numLights - The number of lights to create in this layer
+// treeBase - The radius of the trees at their base
+// castShadows - True if the disco ball lights should cast shadows
 function createDiscoBallLayer(numLights, treeBase, castShadows) {
     var lightLayer = [];
     for (var l=0; l < numLights; l++) {
@@ -319,6 +330,8 @@ function createDiscoBallLayer(numLights, treeBase, castShadows) {
     return lightLayer;
 }
 
+// Create a single light in a layer of spinning dosco ball lights
+//castShadows - True if the disco ball lights should cast shadows
 function getDiscoBallLight(castShadows) {
     var spotRadius = 1;
     if (castShadows) {
@@ -358,7 +371,6 @@ function createRandomForest(numTrees, totalLayers, H, rotateRand) {
 // Creates a forest using the passed parameters to create the individual trees
 // numTrees - the number of trees to generate for the forest
 // bottomRadius - the starting bottom radius of all the trees
-// height - the starting height of all the trees
 // totalLayers - the number of times to branch from branches
 // H - The amount to reduce the height of the branch by each iteration
 // rotateRand - The random amount to add to the rotation of each branch
@@ -399,13 +411,6 @@ function layoutForestGrid(forest, maxTreeSpacing, p) {
             z = z + 1;
         }
     }
-}
-
-function layoutTree(forest) {
-    var tree = forest[0];
-    tree.position.x = 0;
-    tree.position.z = 0;
-    scene.add(tree);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -672,6 +677,3 @@ function getRandomAngle(baseAngle) {
 
 init();
 animate();
-
-
-
