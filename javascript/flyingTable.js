@@ -383,15 +383,15 @@ function loadImageForTexture(url, texture) {
 function setupTextures() {
   // Texture for the table
   pwgl.woodTexture = gl.createTexture();
-  loadImageForTexture("wood_128x128.jpg", pwgl.woodTexture);
+  loadImageForTexture("./media/wood_128x128.jpg", pwgl.woodTexture);
  
   // Texture for the floor
   pwgl.groundTexture = gl.createTexture();
-  loadImageForTexture("metal_floor_256.jpg", pwgl.groundTexture);
+  loadImageForTexture("./media/metal_floor_256.jpg", pwgl.groundTexture);
 
   // Texture for the box on the table
   pwgl.boxTexture = gl.createTexture();
-  loadImageForTexture("wicker_256.jpg", pwgl.boxTexture);
+  loadImageForTexture("./media/wicker_256.jpg", pwgl.boxTexture);
 }
 
 function setupBuffers() {
