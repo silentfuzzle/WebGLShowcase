@@ -64,18 +64,7 @@ function init() {
 // Setup the controls in the upper right
 function setupGui() {
 
-	effectController = {
-
-		lhue:        0.04,
-		lsaturation: 0.01,	// so that fractions will be shown
-		llightness:  1.0,
-
-		// bizarrely, if you initialize these with negative numbers, the sliders
-		// will not show any decimal places.
-		lx: 0.32,
-		ly: 0.39,
-		lz: 0.7,
-		
+	effectController = {		
 		numTrees: numTrees,
 		bottomRadius: bottomRadius,
 		useRandomRadii: useRandomRadii,
@@ -89,24 +78,6 @@ function setupGui() {
 	var h;
 
 	var gui = new dat.GUI();
-
-	// material (attributes)
-    
-	// light (point)
-
-	h = gui.addFolder( "Light color" );
-
-	h.add( effectController, "lhue", 0.0, 1.0, 0.025 ).name("hue");
-	h.add( effectController, "lsaturation", 0.0, 1.0, 0.025 ).name("saturation");
-	h.add( effectController, "llightness", 0.0, 1.0, 0.025 ).name("lightness");
-
-	// light (directional)
-
-	h = gui.addFolder( "Light direction" );
-
-	h.add( effectController, "lx", -1.0, 1.0, 0.025 ).name("x");
-	h.add( effectController, "ly", -1.0, 1.0, 0.025 ).name("y");
-	h.add( effectController, "lz", -1.0, 1.0, 0.025 ).name("z");
 	
 	h = gui.addFolder( "Trees" );
 	
