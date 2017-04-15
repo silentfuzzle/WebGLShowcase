@@ -76,30 +76,39 @@ function IKLimbBuilder() {
     // Creates and returns a limb controlled with inverse kinematics
     this.buildLimb = function() {
 
+        var upperLength = 200;
+        var lowerLength = 300;
+        
+        var ikLimb = new IKLimb(upperLength, lowerLength);
+        
+        // Build the ik limb's meshes
+        this.rebuildLimb(ikLimb);
+        
+        return ikLimb;
+    }
+    
+    // Creates a new set of meshes for the given ikLimb container object
+    // ikLimb - The IKLimb object to generate new meshes for
+    this.rebuildLimb = function(ikLimb) {
+
         // DEFINE MATERIALS AND PARAMETERS HERE
         var upperMaterial = new THREE.MeshLambertMaterial( { color: 0xFF0000 } );
         var lowerMaterial = new THREE.MeshLambertMaterial( { color: 0x0000FF } );
-
-        var upperLength = 200;
-        var lowerLength = 300;
+        
         var radiusTop = 30;
         var radiusBottom = 20;
-        
-        var ikLimb = new IKLimb(upperLength, lowerLength);
         
         // Create limb meshes
         var upperLimb = this.createCylinderFromEnds( upperMaterial,
             radiusTop, radiusBottom,
-            new THREE.Vector3( upperLength, 0, 0 ),
+            new THREE.Vector3( ikLimb.upperLength, 0, 0 ),
             new THREE.Vector3( 0, 0, 0 ));
         var lowerLimb = this.createCylinderFromEnds( lowerMaterial,
             radiusTop, radiusBottom,
-            new THREE.Vector3( upperLength, 0, 0 ),
+            new THREE.Vector3( ikLimb.upperLength, 0, 0 ),
             new THREE.Vector3( ikLimb.totalLength, 0, 0 ));
             
         // Build the IK limb
         ikLimb.buildLimb(upperLimb, lowerLimb);
-                
-        return ikLimb;
     }
 }

@@ -7,7 +7,7 @@
 
 /*global THREE, Coordinates, document, window, dat, $*/
 var camera, scene, renderer;
-var cameraControls, effectController;
+var cameraControls, effectController, gui;
 var clock = new THREE.Clock();
 var gridX = true;
 var gridY = true;
@@ -17,6 +17,11 @@ var ground = true;
 
 var ikLimb, ikLimbBuilder;
 
+///////////////////////////////////////////////////////////////////////////////
+//Scene creation methods
+///////////////////////////////////////////////////////////////////////////////
+
+// Fill the scene with objects and lights
 function fillScene() {
 	scene = new THREE.Scene();
 	scene.fog = new THREE.Fog( 0x808080, 2000, 4000 );
@@ -35,41 +40,21 @@ function fillScene() {
 	scene.add(light2);
     
     // BUILD IK LIMB
-    ikLimbBuilder = new IKLimbBuilder();
-    ikLimb = ikLimbBuilder.buildLimb();
-    scene.add(ikLimb.root);
-}
-
-function init() {
-	var canvasWidth = window.innerWidth;
-	var canvasHeight = window.innerHeight;
-	var canvasRatio = canvasWidth / canvasHeight;
-
-	// RENDERER
-	renderer = new THREE.WebGLRenderer( { antialias: true } );
-	renderer.gammaInput = true;
-	renderer.gammaOutput = true;
-	renderer.setSize(canvasWidth, canvasHeight);
-	renderer.setClearColorHex( 0xAAAAAA, 1.0 );
-
-	// CAMERA
-	camera = new THREE.PerspectiveCamera( 40, canvasRatio, 1, 10000 );
-	camera.position.set( -528, 513, 92 );
-	// CONTROLS
-	cameraControls = new THREE.OrbitAndPanControls(camera, renderer.domElement);
-	cameraControls.target.set(0,200,0);
-
-}
-
-function addToDOM() {
-	var container = document.getElementById('container');
-	var canvas = container.getElementsByTagName('canvas');
-	if (canvas.length>0) {
-		container.removeChild(canvas[0]);
+	if (ikLimb == null) {
+	    ikLimbBuilder = new IKLimbBuilder();
+	    ikLimb = ikLimbBuilder.buildLimb();
 	}
-	container.appendChild( renderer.domElement );
+	else {
+		ikLimbBuilder.rebuildLimb(ikLimb);
+	}
+	
+    scene.add(ikLimb.root);
+    
+    // Add grid lines
+    drawHelpers();
 }
 
+// Add requested grid lines to the scene
 function drawHelpers() {
 	if (ground) {
 		Coordinates.drawGround({size:10000});
@@ -87,6 +72,68 @@ function drawHelpers() {
 		Coordinates.drawAllAxes({axisLength:200,axisRadius:1,axisTess:50});
 	}
 }
+
+///////////////////////////////////////////////////////////////////////////////
+//Initialization methods
+///////////////////////////////////////////////////////////////////////////////
+
+// Initialize the application
+function init() {
+	var canvasWidth = window.innerWidth;
+	var canvasHeight = window.innerHeight;
+	var canvasRatio = canvasWidth / canvasHeight;
+
+	// RENDERER
+	renderer = new THREE.WebGLRenderer( { antialias: true } );
+	renderer.gammaInput = true;
+	renderer.gammaOutput = true;
+	renderer.autoClear = false;
+	renderer.setSize(canvasWidth, canvasHeight);
+	renderer.setClearColorHex( 0xAAAAAA, 1.0 );
+
+	// CAMERA
+	camera = new THREE.PerspectiveCamera( 40, canvasRatio, 1, 10000 );
+	camera.position.set( -528, 513, 92 );
+	// CONTROLS
+	cameraControls = new THREE.OrbitAndPanControls(camera, renderer.domElement);
+	cameraControls.target.set(0,200,0);
+
+}
+
+// Setup the controls in the upper right
+function setupGui() {
+	effectController = {
+		newGridX: gridX,
+		newGridY: gridY,
+		newGridZ: gridZ,
+		newGround: ground,
+		newAxes: axes
+	};
+
+	gui = new dat.GUI();
+	var h = gui.addFolder("Grid display");
+	h.add( effectController, "newGridX").name("Show XZ grid");
+	h.add( effectController, "newGridY" ).name("Show YZ grid");
+	h.add( effectController, "newGridZ" ).name("Show XY grid");
+	h.add( effectController, "newGround" ).name("Show ground");
+	h.add( effectController, "newAxes" ).name("Show axes");
+    
+    ikLimb.buildController(gui);
+}
+
+//Adds the scene to the web page
+function addToDOM() {
+	var container = document.getElementById('container');
+	var canvas = container.getElementsByTagName('canvas');
+	if (canvas.length>0) {
+		container.removeChild(canvas[0]);
+	}
+	container.appendChild( renderer.domElement );
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//Animation methods
+///////////////////////////////////////////////////////////////////////////////
 
 function animate() {
 	window.requestAnimationFrame(animate);
@@ -110,7 +157,6 @@ function render() {
 		axes = effectController.newAxes;
 
 		fillScene();
-		drawHelpers();
 	}
     
     ikLimb.update(ikLimbBuilder.makeLengthAngleAxisTransform);
@@ -118,30 +164,9 @@ function render() {
 	renderer.render(scene, camera);
 }
 
-
-function setupGui() {
-	effectController = {
-		newGridX: gridX,
-		newGridY: gridY,
-		newGridZ: gridZ,
-		newGround: ground,
-		newAxes: axes
-	};
-
-	var gui = new dat.GUI();
-	/*var h = gui.addFolder("Grid display");
-	h.add( effectController, "newGridX").name("Show XZ grid");
-	h.add( effectController, "newGridY" ).name("Show YZ grid");
-	h.add( effectController, "newGridZ" ).name("Show XY grid");
-	h.add( effectController, "newGround" ).name("Show ground");
-	h.add( effectController, "newAxes" ).name("Show axes");*/
-    
-    ikLimb.buildController(gui);
-}
-
+// Run the application
 init();
 fillScene();
-drawHelpers();
 setupGui();
 addToDOM();
 animate();

@@ -50,6 +50,8 @@ function IKLimb(upperLength, lowerLength) {
     // upperLimb - the mesh to use for the upper limb
     // lowerLimb - the mesh to use for the lower limb
     this.buildLimb = function(upperLimb, lowerLimb) {
+        
+        this.buildGuides();
     
         // Set limb meshes
         this.upperLimb = upperLimb;
@@ -221,6 +223,4 @@ function IKLimb(upperLength, lowerLength) {
             elbowPos, new THREE.Vector3(Math.abs(rootToHandLength), 0, 0));
         this.lowerLimb.updateMatrixWorld(true);
     }
-    
-    this.buildGuides();
 }
