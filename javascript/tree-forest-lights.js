@@ -1,6 +1,6 @@
 //Emily Palmieri
 //Disco Forest
-//4-14-2017
+//9-29-2014
 
 /*global THREE, requestAnimationFrame, dat, window */
 
@@ -24,7 +24,7 @@ var randomRotation = 10;
 var treeSpacing = 800;
 var treeSpacingRandomness = 500;
 
-// Initialize the demonstration
+// Initialize the application
 function init() {
 	var canvasWidth = window.innerWidth;
 	var canvasHeight = window.innerHeight;

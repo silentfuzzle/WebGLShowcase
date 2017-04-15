@@ -1,11 +1,7 @@
 //Emily Palmieri
-//Height field data generation and display
+//Height Field
 //9-15-2014
-// Base code: unit3-teapot-demo.js
 
-////////////////////////////////////////////////////////////////////////////////
-// Teapot demo (unit 3): focus is on illumination model and shading
-////////////////////////////////////////////////////////////////////////////////
 /*global THREE, requestAnimationFrame, dat, window */
 
 var camera, scene, renderer;
@@ -20,6 +16,14 @@ var flat;
 var phong;
 var flatGouraudMaterial, flatPhongMaterial, gouraudMaterial, phongMaterial, wireMaterial;
 
+var useImage = false;
+var useImage1 = true;
+var iterative = true;
+var startingRoughness = 200;
+var decreaseRoughness = 1;
+var scale = 3;
+
+// Initialize the application
 function init() {
 	var canvasWidth = window.innerWidth;
 	var canvasHeight = window.innerHeight;
@@ -88,20 +92,27 @@ function init() {
 
 }
 
-// EVENT HANDLERS
+function createShaderMaterial( id, light, ambientLight ) {
 
-function onWindowResize() {
+	var shader = THREE.ShaderTypes[ id ];
 
-	var canvasWidth = window.innerWidth;
-	var canvasHeight = window.innerHeight;
+	var u = THREE.UniformsUtils.clone( shader.uniforms );
 
-	renderer.setSize( canvasWidth, canvasHeight );
+	var vs = shader.vertexShader;
+	var fs = shader.fragmentShader;
 
-	camera.aspect = canvasWidth/ canvasHeight;
-	camera.updateProjectionMatrix();
+	var material = new THREE.ShaderMaterial( { uniforms: u, vertexShader: vs, fragmentShader: fs } );
+
+	material.uniforms.uDirLightPos.value = light.position;
+	material.uniforms.uDirLightColor.value = light.color;
+
+	material.uniforms.uAmbientLightColor.value = ambientLight.color;
+
+	return material;
 
 }
 
+//Setup the controls in the upper right
 function setupGui() {
 
 	effectController = {
@@ -128,7 +139,14 @@ function setupGui() {
 		newTess: 6,
 		newFlat: false,
 		newPhong: true,
-		newWire: false
+		newWire: false,
+		
+		useImage: useImage,
+		useImage1: useImage1,
+		iterative: iterative,
+		startingRoughness: startingRoughness,
+		decreaseRoughness: decreaseRoughness,
+		scale: scale
 	};
 
 	var h;
@@ -170,14 +188,38 @@ function setupGui() {
 	h.add( effectController, "lz", -1.0, 1.0, 0.025 ).name("z");
 
 	h = gui.addFolder( "Tessellation control" );
-	h.add(effectController, "newTess", [2,3,4,5,6,8,10,12,16,24,32] ).name("Tessellation Level");
+	h.add( effectController, "newTess", [2,3,4,5,6,8,10,12,16,24,32] ).name("Tessellation Level");
 	h.add( effectController, "newFlat" ).name("Flat Shading");
 	h.add( effectController, "newPhong" ).name("Use Phong");
 	h.add( effectController, "newWire" ).name("Show wireframe only");
+	
+	// Height field controls
+	
+	h = gui.addFolder("Height Field");
+	h.add( effectController, "useImage");
+	h.add( effectController, "useImage1");
+	h.add( effectController, "iterative");
+	h.add( effectController, "startingRoughness", 0, 500).step(10);
+	h.add( effectController, "decreaseRoughness", 0, 1).step(0.01);
+	h.add( effectController, "scale", 1, 5).step(1);
 }
 
+//Resize the application when the user resizes their browser
+function onWindowResize() {
 
-//
+	var canvasWidth = window.innerWidth;
+	var canvasHeight = window.innerHeight;
+
+	renderer.setSize( canvasWidth, canvasHeight );
+
+	camera.aspect = canvasWidth/ canvasHeight;
+	camera.updateProjectionMatrix();
+
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//Animation methods
+///////////////////////////////////////////////////////////////////////////////
 
 function animate() {
 
@@ -189,14 +231,29 @@ function animate() {
 function render() {
 
 	var delta = clock.getDelta();
-
 	cameraControls.update( delta );
-	if ( effectController.newTess !== tess || effectController.newFlat !== flat || effectController.newPhong !== phong || effectController.newWire !== wire)
+	if ( effectController.newTess !== tess ||
+			effectController.newFlat !== flat || 
+			effectController.newPhong !== phong || 
+			effectController.newWire !== wire ||
+			effectController.useImage !== useImage ||
+			effectController.useImage1 !== useImage1 ||
+			effectController.iterative !== iterative ||
+			effectController.startingRoughness !== startingRoughness ||
+			effectController.decreaseRoughness !== decreaseRoughness ||
+			effectController.scale !== scale)
 	{
 		tess = effectController.newTess;
 		flat = effectController.newFlat;
 		phong = effectController.newPhong;
 		wire = effectController.newWire;
+		
+		useImage = effectController.useImage;
+		useImage1 = effectController.useImage1;
+		iterative = effectController.iterative;
+		startingRoughness = effectController.startingRoughness;
+		decreaseRoughness = effectController.decreaseRoughness;
+		scale = effectController.scale;
 
 		fillScene();
 	}
@@ -241,30 +298,11 @@ function render() {
 
 }
 
-function createShaderMaterial( id, light, ambientLight ) {
-
-	var shader = THREE.ShaderTypes[ id ];
-
-	var u = THREE.UniformsUtils.clone( shader.uniforms );
-
-	var vs = shader.vertexShader;
-	var fs = shader.fragmentShader;
-
-	var material = new THREE.ShaderMaterial( { uniforms: u, vertexShader: vs, fragmentShader: fs } );
-
-	material.uniforms.uDirLightPos.value = light.position;
-	material.uniforms.uDirLightColor.value = light.color;
-
-	material.uniforms.uAmbientLightColor.value = ambientLight.color;
-
-	return material;
-
-}
-
 ///////////////////////////////////////////////////////////////////////////////
 //Create and display height field methods
 ///////////////////////////////////////////////////////////////////////////////
 
+// Generate the terrain and lighting to display
 function fillScene() {
 	scene = new THREE.Scene();
 	scene.fog = new THREE.Fog( 0x808080, 2000, 4000 );
@@ -275,20 +313,32 @@ function fillScene() {
 	scene.add( light );
 	scene.add( particleLight );
     
-    // SET THE HEIGHT FIELD VARIABLES HERE
-    // (source file location, scale)
-    //'./media/heightField1.png'
-    createHeightFieldFromImage('./media/heightField2.jpg', 1);
-    // (w defines the width - width = 2^w + 1,
-    //  h defines the height - height = 2^h + 1,
-    //  starting roughness, 
-    //  rate at which roughness decreases between 0 and 1,
-    //  true if iterative diamond-square should be used/false if recursive, 
-    //  scale)
-    //createHeightFieldFromDiamondSquare(7, 8, 200, 1, true, 3);
+	if (useImage) {
+		if (useImage1) {
+		    // (source file location, scale)
+		    createHeightFieldFromImage('./media/heightField1.jpg', scale);
+		}
+		else {
+		    // (source file location, scale)
+		    createHeightFieldFromImage('./media/heightField2.jpg', scale);
+		}
+	}
+	else {
+	    // (w defines the width - width = 2^w + 1,
+	    //  h defines the height - height = 2^h + 1,
+	    //  starting roughness, 
+	    //  rate at which roughness decreases between 0 and 1,
+	    //  true if iterative diamond-square should be used/false if recursive, 
+	    //  scale)
+	    createHeightFieldFromDiamondSquare(8, 8, startingRoughness, decreaseRoughness, iterative, scale);
+	}
 }
 
 // Creates and displays a 3D geometry, mesh, and material of the passed height field data
+//heightData - a 1D array of data about the terrain to display
+//w - defines the width - width = 2^w + 1
+//h - defines the height - height = 2^h + 1
+//scale - the value to scale the geometry by
 function createHeightField(heightData, width, height, scale) {
     console.log('Starting geometry creation...');
     var fieldGeo = new THREE.PlaneGeometry(width*scale, height*scale, width-1, height-1);
@@ -329,6 +379,8 @@ function createHeightFieldFromImage(source, scale) {
 }
 
 // Gets the height data from an image object
+// img - The object containing the image
+//scale - the value to scale the image by
 function getHeightData(img,scale) {
 
     if (scale == undefined) scale=1;
@@ -364,8 +416,8 @@ function getHeightData(img,scale) {
 ///////////////////////////////////////////////////////////////////////////////
 
 // Creates a height field from the diamond square algorithm and displays it
-// w defines the width - width = 2^w + 1
-// h defines the height - height = 2^h + 1
+// w - defines the width - width = 2^w + 1
+// h - defines the height - height = 2^h + 1
 // H - the roughness of the terrain
 // f - the rate at which H shrinks per iteration, a value between 0 and 1, H / 2^f
 // iterative - true if the iterative method should be used, false if the recursive method should be used
@@ -378,6 +430,11 @@ function createHeightFieldFromDiamondSquare(w, h, H, f, iterative, scale) {
 }
 
 // Creates a height field from the diamond-square algorithm and returns it for display
+//terrainWidth - defines the width - width = 2^w + 1
+//terrainHeight - defines the height - height = 2^h + 1
+//H - the roughness of the terrain
+//f - the rate at which H shrinks per iteration, a value between 0 and 1, H / 2^f
+//iterative - true if the iterative method should be used, false if the recursive method should be used
 function getTerrainData(terrainWidth, terrainHeight, H, f, iterative) {
 
     // Initializes the 2D array of terrain data
