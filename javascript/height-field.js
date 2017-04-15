@@ -8,7 +8,6 @@ var camera, scene, renderer;
 var cameraControls;
 var effectController;
 var clock = new THREE.Clock();
-var teapotSize = 400;
 var ambientLight, light, particleLight;
 var tess = -1;	// force initialization
 var wire;

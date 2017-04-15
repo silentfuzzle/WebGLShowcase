@@ -1,9 +1,7 @@
-////////////////////////////////////////////////////////////////////////////////
-// Staircase exercise
-// Your task is to complete the model for simple stairs
-// Using the provided sizes and colors, complete the staircase
-// and reach the Gold Cup!
-////////////////////////////////////////////////////////////////////////////////
+//Emily Palmieri
+//Icosahedron
+//4-14-2017
+
 /*global THREE, Coordinates, $, document, window, dat*/
 
 var camera, scene, renderer;
@@ -132,23 +130,6 @@ function calculateVData(scale) {
     ];
     
     return vdata;
-}
-
-function createCup() {
-	var cupMaterial = new THREE.MeshLambertMaterial( { color: 0xFDD017});
-	// THREE.CylinderGeometry takes (radiusTop, radiusBottom, height, segmentsRadius)
-	var cupGeo = new THREE.CylinderGeometry( 200, 50, 400, 32 );
-	var cup = new THREE.Mesh( cupGeo, cupMaterial );
-	cup.position.x = 0;
-	cup.position.y = 1725;
-	cup.position.z = 1925;
-	scene.add( cup );
-	cupGeo = new THREE.CylinderGeometry( 100, 100, 50, 32 );
-	cup = new THREE.Mesh( cupGeo, cupMaterial );
-	cup.position.x = 0;
-	cup.position.y = 1525;
-	cup.position.z = 1925;
-	scene.add( cup );
 }
 
 function init() {
