@@ -1,74 +1,25 @@
 //Emily Palmieri
 //Icosahedron
-//4-14-2017
+//2014
 
 /*global THREE, Coordinates, $, document, window, dat*/
 
 var camera, scene, renderer;
-var cameraControls, effectController;
+var cameraControls;
 var clock = new THREE.Clock();
-var gridX = false;
-var gridY = false;
-var gridZ = false;
-var axes = false;
-var ground = true;
+
+var generatorMethod = 0;
+var initialized = false;
+
+///////////////////////////////////////////////////////////////////////////////
+//Icosahedron creation methods
+///////////////////////////////////////////////////////////////////////////////
 
 var triangles = [
 [0,4,1], [0,9,4], [9,5,4], [4,5,8], [4,8,1],
 [8,10,1], [8,3,10], [5,3,8], [5,2,3], [2,7,3],
 [7,10,3], [7,6,10], [7,11,6], [11,0,6], [0,1,6],
 [6,1,10], [9,0,11], [9,11,2], [9,2,5], [7,2,11] ];
-
-function createStairs() {
-
-	// MATERIALS
-	var stepMaterialVertical = new THREE.MeshLambertMaterial( {
-		color: 0xA85F35
-	} );
-	var stepMaterialHorizontal = new THREE.MeshLambertMaterial( {
-		color: 0xBC7349
-	} );
-
-	var stepWidth = 500;
-	var stepSize = 200;
-	var stepThickness = 50;
-	// height from top of one step to bottom of next step up
-	var verticalStepHeight = stepSize;
-	var horizontalStepDepth = stepSize*2;
-
-	var stepHalfThickness = stepThickness/2;
-
-	// +Y direction is up
-	// Define the two pieces of the step, vertical and horizontal
-	// THREE.CubeGeometry takes (width, height, depth)
-	var stepVertical = new THREE.CubeGeometry(stepWidth, verticalStepHeight, stepThickness);
-	var stepHorizontal = new THREE.CubeGeometry(stepWidth, stepThickness, horizontalStepDepth);
-	var stepMesh;
-    
-    for (var s = 0; s < 6; s++)
-    {
-        var yOffset = s*(verticalStepHeight + stepThickness);
-        var zOffset = s*(horizontalStepDepth - stepThickness);
-        
-        // Make and position the vertical part of the step
-        stepMesh = new THREE.Mesh( stepVertical, stepMaterialVertical );
-        // The position is where the center of the block will be put.
-        // You can define position as THREE.Vector3(x, y, z) or in the following way:
-        stepMesh.position.x = 0;			// centered at origin
-        stepMesh.position.y = yOffset + verticalStepHeight/2;	// half of height: put it above ground plane
-        stepMesh.position.z = zOffset;			// centered at origin
-        scene.add( stepMesh );
-
-        // Make and position the horizontal part
-        stepMesh = new THREE.Mesh( stepHorizontal, stepMaterialHorizontal );
-        stepMesh.position.x = 0;
-        // Push up by half of horizontal step's height, plus vertical step's height
-        stepMesh.position.y = yOffset + stepThickness/2 + verticalStepHeight;
-        // Push step forward by half the depth, minus half the vertical step's thickness
-        stepMesh.position.z = zOffset + (horizontalStepDepth/2 - stepHalfThickness);
-        scene.add( stepMesh );
-    }
-}
 
 // Creates an Icosohedron using a basic Geometry object
 function createIcosahedron0() {
@@ -119,6 +70,7 @@ function addIcosahedron(geometry, material) {
 }
 
 // Calculates the position of the vertices of the icosahedron
+// scale - The value to scale the icosahedron by, negative is right-side up
 function calculateVData(scale) {
     var X = 0.525731112119133606 * scale;
     var Z = 0.850650808352039932 * scale;
@@ -132,6 +84,101 @@ function calculateVData(scale) {
     return vdata;
 }
 
+///////////////////////////////////////////////////////////////////////////////
+//Other scene creation methods
+///////////////////////////////////////////////////////////////////////////////
+
+//Build the staircase
+function createStairs() {
+
+	// MATERIALS
+	var stepMaterialVertical = new THREE.MeshLambertMaterial( {
+		color: 0xA85F35
+	} );
+	var stepMaterialHorizontal = new THREE.MeshLambertMaterial( {
+		color: 0xBC7349
+	} );
+
+	var stepWidth = 500;
+	var stepSize = 200;
+	var stepThickness = 50;
+	// height from top of one step to bottom of next step up
+	var verticalStepHeight = stepSize;
+	var horizontalStepDepth = stepSize*2;
+
+	var stepHalfThickness = stepThickness/2;
+
+	// +Y direction is up
+	// Define the two pieces of the step, vertical and horizontal
+	// THREE.CubeGeometry takes (width, height, depth)
+	var stepVertical = new THREE.CubeGeometry(stepWidth, verticalStepHeight, stepThickness);
+	var stepHorizontal = new THREE.CubeGeometry(stepWidth, stepThickness, horizontalStepDepth);
+	var stepMesh;
+ 
+ for (var s = 0; s < 6; s++)
+ {
+     var yOffset = s*(verticalStepHeight + stepThickness);
+     var zOffset = s*(horizontalStepDepth - stepThickness);
+     
+     // Make and position the vertical part of the step
+     stepMesh = new THREE.Mesh( stepVertical, stepMaterialVertical );
+     // The position is where the center of the block will be put.
+     // You can define position as THREE.Vector3(x, y, z) or in the following way:
+     stepMesh.position.x = 0;			// centered at origin
+     stepMesh.position.y = yOffset + verticalStepHeight/2;	// half of height: put it above ground plane
+     stepMesh.position.z = zOffset;			// centered at origin
+     scene.add( stepMesh );
+
+     // Make and position the horizontal part
+     stepMesh = new THREE.Mesh( stepHorizontal, stepMaterialHorizontal );
+     stepMesh.position.x = 0;
+     // Push up by half of horizontal step's height, plus vertical step's height
+     stepMesh.position.y = yOffset + stepThickness/2 + verticalStepHeight;
+     // Push step forward by half the depth, minus half the vertical step's thickness
+     stepMesh.position.z = zOffset + (horizontalStepDepth/2 - stepHalfThickness);
+     scene.add( stepMesh );
+ }
+}
+
+//Adds the lights and objects to the scene
+function fillScene() {
+	// SCENE
+	scene = new THREE.Scene();
+	scene.fog = new THREE.Fog( 0x808080, 3000, 6000 );
+	// LIGHTS
+	var ambientLight = new THREE.AmbientLight( 0x222222 );
+	var light = new THREE.DirectionalLight( 0xFFFFFF, 1.0 );
+	light.position.set( 200, 400, 500 );
+
+	var light2 = new THREE.DirectionalLight( 0xFFFFFF, 1.0 );
+	light2.position.set( -400, 200, -300 );
+
+	scene.add(ambientLight);
+	scene.add(light);
+	scene.add(light2);
+
+	if (generatorMethod == 0) {
+		console.log("Generated Icosahedron using the Geometry class.");
+	    createIcosahedron0(); // Use Geometry
+	}
+	else if (generatorMethod == 1) {
+		console.log("Generated Icosahedron using the IcosahedronGeometry class.");
+		createIcosahedron1(); // Use IcosahedronGeometry
+	}
+	else {
+		console.log("Generated Icosahedron using the PolyhedronGeometry class.");
+		createIcosahedron2();  // Use PolyhedronGeometry
+	}
+
+	var stairs = createStairs();
+	scene.add(stairs);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//Initialization methods
+///////////////////////////////////////////////////////////////////////////////
+
+// Initialize the application
 function init() {
 	var canvasWidth = 846;
 	var canvasHeight = 494;
@@ -153,13 +200,9 @@ function init() {
 	// CONTROLS
 	cameraControls = new THREE.OrbitAndPanControls(camera, renderer.domElement);
 	cameraControls.target.set(0,600,0);
-
-	// Camera(2) for testing has following values:
-	// camera.position.set( 1225, 2113, 1814 );
-	// cameraControls.target.set(-1800,180,630);
-
-	fillScene();
 }
+
+// Adds the scene to the web page
 function addToDOM() {
 	var container = document.getElementById('container');
 	var canvas = container.getElementsByTagName('canvas');
@@ -168,47 +211,23 @@ function addToDOM() {
 	}
 	container.appendChild( renderer.domElement );
 }
-function fillScene() {
-	// SCENE
-	scene = new THREE.Scene();
-	scene.fog = new THREE.Fog( 0x808080, 3000, 6000 );
-	// LIGHTS
-	var ambientLight = new THREE.AmbientLight( 0x222222 );
-	var light = new THREE.DirectionalLight( 0xFFFFFF, 1.0 );
-	light.position.set( 200, 400, 500 );
 
-	var light2 = new THREE.DirectionalLight( 0xFFFFFF, 1.0 );
-	light2.position.set( -400, 200, -300 );
+//Setup the controls in the upper right
+function setupGui() {
 
-	scene.add(ambientLight);
-	scene.add(light);
-	scene.add(light2);
+	effectController = {
+		generatorMethod: generatorMethod
+	};
 
-	if (ground) {
-		Coordinates.drawGround({size:1000});
-	}
-	if (gridX) {
-		Coordinates.drawGrid({size:1000,scale:0.01});
-	}
-	if (gridY) {
-		Coordinates.drawGrid({size:1000,scale:0.01, orientation:"y"});
-	}
-	if (gridZ) {
-		Coordinates.drawGrid({size:1000,scale:0.01, orientation:"z"});
-	}
-	if (axes) {
-		Coordinates.drawAllAxes({axisLength:300,axisRadius:2,axisTess:50});
-	}
-
-    // Comment and uncomment these lines to toggle between different icosahedron building methods
-    createIcosahedron0(); // Use Geometry
-	//createIcosahedron1(); // Use IcosahedronGeometry
-    //createIcosahedron2();  // Use PolyhedronGeometry
-    
-	var stairs = createStairs();
-	scene.add(stairs);
+	var gui = new dat.GUI();
+	gui.add(effectController, "generatorMethod", 
+			{ 'Geometry Class': 0, 'Icosahedron Class': 1, 'Polyhedron Class': 2 } )
+			.name("Generator");
 }
-//
+
+///////////////////////////////////////////////////////////////////////////////
+//Animation methods
+///////////////////////////////////////////////////////////////////////////////
 
 function animate() {
 	window.requestAnimationFrame(animate);
@@ -218,40 +237,16 @@ function animate() {
 function render() {
 	var delta = clock.getDelta();
 	cameraControls.update(delta);
-	if ( effectController.newGridX !== gridX || effectController.newGridY !== gridY || effectController.newGridZ !== gridZ || effectController.newGround !== ground || effectController.newAxes !== axes)
+	if (generatorMethod !== effectController.generatorMethod || !initialized)
 	{
-		gridX = effectController.newGridX;
-		gridY = effectController.newGridY;
-		gridZ = effectController.newGridZ;
-		ground = effectController.newGround;
-		axes = effectController.newAxes;
-
+		initialized = true;
+		generatorMethod = effectController.generatorMethod;
 		fillScene();
 	}
 	renderer.render(scene, camera);
 }
 
-function setupGui() {
-
-	effectController = {
-
-		newGridX: gridX,
-		newGridY: gridY,
-		newGridZ: gridZ,
-		newGround: ground,
-		newAxes: axes
-	};
-
-	var gui = new dat.GUI();
-	gui.add(effectController, "newGridX").name("Show XZ grid");
-	gui.add( effectController, "newGridY" ).name("Show YZ grid");
-	gui.add( effectController, "newGridZ" ).name("Show XY grid");
-	gui.add( effectController, "newGround" ).name("Show ground");
-	gui.add( effectController, "newAxes" ).name("Show axes");
-}
-
-
-
+// Run application
 try {
 	init();
 	setupGui();
