@@ -3,33 +3,26 @@ var camera, scene, renderer;
 
 var cameraControls;
 
-var effectController;
-
 var clock = new THREE.Clock();
 
 var ambientLight, light;
 
 var snowman;
-var demoManual = true;
-var useAlt3 = true;
-var updateWorldMatrix = true;
 var parenter;
 
-init();
-animate();
+var effectController;
+var demoManual = false; 	  // Set true to demonstrate the effects of naively using Object3D.remove() and Object3D.add() methods
+var useAlt3 = false; 		  // Set false to demonstrate the effects of parenting an object directly from one object to another
+var updateWorldMatrix = true; // Set false to demonstrate the effects of not making sure world matrices are up to date
+var buildWithSpheres = false;
 
-function init() {
+///////////////////////////////////////////////////////////////////////////////
+//Scene refreshing
+///////////////////////////////////////////////////////////////////////////////
 
-	// CAMERA
-
-	camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 1, 80000 );
-	camera.position.set( -1000, 450, -1300 );
-
-	// SCENE
+function fillScene() {
 
 	scene = new THREE.Scene();
-
-	scene.add( camera );
 
 	// LIGHTS
 
@@ -40,32 +33,12 @@ function init() {
 	light.position.set( -620, 390, 100 );
 
 	scene.add( light );
+
+	// SNOWMAN
 	
-	// RENDERER
-
-	renderer = new THREE.WebGLRenderer( { antialias: true } );
-	renderer.setSize( window.innerWidth, window.innerHeight );
-	renderer.setClearColorHex( 0xAAAAAA, 1.0 );
-
-
-	var container = document.getElementById('container');
-	container.appendChild( renderer.domElement );
-
-	renderer.gammaInput = true;
-	renderer.gammaOutput = true;
-
-	// CONTROLS
-
-	cameraControls = new THREE.OrbitAndPanControls( camera, renderer.domElement );
-	cameraControls.target.set(0, 0, 0);
+    // Determines the method used to parent and deparent objects
+    parenter = new Parenter(demoManual, updateWorldMatrix);
 	
-    // VARIABLES
-    
-    // Define demo type here
-    demoManual = false;         // Set true to demonstrate the effects of naively using Object3D.remove() and Object3D.add() methods
-    useAlt3 = false;            // Set false to demonstrate the effects of parenting an object directly from one object to another
-    updateWorldMatrix = true;   // Set false to demonstrate the effects of not making sure world matrices are up to date
-    
     // Define snowman material here
 	var snowMaterial = new THREE.MeshLambertMaterial( { color: 0x80fc66, transparent: true, opacity: 0.6 } );
 	var ka = 0.4;
@@ -80,26 +53,22 @@ function init() {
     var snowmanUpperLength = 200;
     var snowmanHeadLength = 100;
     var snowmanArmLength = 500;
-    var buildWithSpheres = false;
-    
-    // BUILD SCENE
-    
-    // Determines the method used to parent and deparent objects
-    parenter = new Parenter(demoManual, updateWorldMatrix);
-    
-    snowman = new Snowman(
-        armMaterial,
-        snowMaterial, 
-        snowmanLowerLength, 
-        snowmanUpperLength, 
-        snowmanArmLength, 
-        snowmanHeadLength,
-        buildWithSpheres);
-    snowman.buildSkeleton();
-    snowman.head.position.y = 50;
-    snowman.head.position.z = -500;
-    snowman.addPartsToScene(scene); 
-    
+	
+	snowman = new Snowman(
+	        armMaterial,
+	        snowMaterial, 
+	        snowmanLowerLength, 
+	        snowmanUpperLength, 
+	        snowmanArmLength, 
+	        snowmanHeadLength,
+	        buildWithSpheres);
+	    snowman.buildSkeleton();
+	    snowman.head.position.y = 50;
+	    snowman.head.position.z = -500;
+	    snowman.addPartsToScene(scene); 
+	    
+	// GROUND
+	    
     var solidGround = new THREE.Mesh(
 		new THREE.PlaneGeometry( 10000, 10000 ),
 		new THREE.MeshPhongMaterial({ color: 0x555555, ambient: 0x555555,
@@ -112,16 +81,37 @@ function init() {
     solidGround.rotation.x = -Math.PI / 2;
     
     scene.add(solidGround);
-	
-	// GUI
-
-	setupGui();
     
     animationStep1();
 }
 
+// Check if the user has changed the simulation settings such that the scene needs to be refreshed
+function checkRefreshScene() {
+	if (effectController.demoManual !== demoManual ||
+			effectController.updateWorldMatrix !== updateWorldMatrix ||
+			effectController.buildWithSpheres !== buildWithSpheres) {
+		
+		demoManual = effectController.demoManual;
+		updateWorldMatrix = effectController.updateWorldMatrix;
+		buildWithSpheres = effectController.buildWithSpheres;
+		
+		fillScene();
+		
+		return true;
+	}
+	return false;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//Animation steps
+///////////////////////////////////////////////////////////////////////////////
+
 // Step 1: The snowman's head moves to the neck and then the right hand
-function animationStep1() {    
+function animationStep1() {
+	if (checkRefreshScene()) {
+		return;
+	}
+	
     var snowmanLowerLength = snowman.lowerBodyLength;
     var snowmanUpperLength = snowman.upperBodyLength;
     var snowmanHeadLength = snowman.headLength;
@@ -141,7 +131,7 @@ function animationStep1() {
         snowmanHead, current);
         
     var yPos = snowmanLowerLength;
-    if (useAlt3) {
+    if (effectController.useAlt3) {
         yPos += snowmanUpperLength / 2 + snowmanHeadLength / 2;
     }
     else {
@@ -165,6 +155,10 @@ function animationStep1() {
 // Step 2: The snowman's head is parented to the right hand 
 // The left and right arms are rotated so the hands are above the body
 function animationStep2() {
+	if (checkRefreshScene()) {
+		return;
+	}
+	
     var rightArmPivot = snowman.rightArmPivot;
     var leftArmPivot = snowman.leftArmPivot;
     
@@ -181,7 +175,7 @@ function animationStep2() {
         undefined, -90 * Math.PI / 180, undefined, 
         snowman.leftArmPivot);
         
-    if (useAlt3) {
+    if (effectController.useAlt3) {
         // De-parent the head in a separate step from rotation
         tweenLeftArm.onComplete(altAnimationStep3A);
     }
@@ -198,6 +192,10 @@ function animationStep2() {
 // Step 3A: The snowman's head is removed as a child from the right hand
 // The head is moved to the left hand
 function altAnimationStep3A() {
+	if (checkRefreshScene()) {
+		return;
+	}
+	
     var snowmanHead = snowman.head;
     var rightArmPivot = snowman.rightArmPivot;
     
@@ -217,12 +215,16 @@ function altAnimationStep3A() {
 // Step 3B: The snowman's head is parented from the right hand to the left hand
 // The left and right arms are rotated back to their rest positions
 function animationStep3B() {
+	if (checkRefreshScene()) {
+		return;
+	}
+	
     var rightArmPivot = snowman.rightArmPivot;
     var leftArmPivot = snowman.leftArmPivot;
     var snowmanHead = snowman.head;
     
     // Parent the snowman's head from the right to the left hand
-    if (useAlt3) {
+    if (effectController.useAlt3) {
         parenter.parent(leftArmPivot, snowmanHead, scene);
     }
     else {
@@ -259,6 +261,10 @@ function animationStep3B() {
 // Step 4: The snowman's head removed as a child of the the left hand
 // The head is moved to the neck
 function animationStep4() {
+	if (checkRefreshScene()) {
+		return;
+	}
+	
     // De-parent the head from the left hand
     parenter.deparent(snowman.leftArmPivot, snowman.head, scene);
 
@@ -273,6 +279,10 @@ function animationStep4() {
 // Step 5: The snowman's head is parented to the upper body
 // The upper body is rotated 90 degrees
 function animationStep5() {
+	if (checkRefreshScene()) {
+		return;
+	}
+	
     var snowmanUpperPivot = snowman.upperBodyPivot;
     
     // Parent the head to the upper body
@@ -289,6 +299,10 @@ function animationStep5() {
 // Step 6: The snowman's head removed as a child of the the upper body
 // The head and body return to their start positions
 function animationStep6() {
+	if (checkRefreshScene()) {
+		return;
+	}
+	
     var snowmanUpperPivot = snowman.upperBodyPivot;
     
     // De-parent the head from the upper body
@@ -313,35 +327,61 @@ function animationStep6() {
     tweenHead.start();
 }
 
-function setupGui() {
+///////////////////////////////////////////////////////////////////////////////
+//Initialization methods
+///////////////////////////////////////////////////////////////////////////////
 
-	/*effectController = {
+// Initialize the application
+function init() {
+
+	// RENDERER
+
+	renderer = new THREE.WebGLRenderer( { antialias: true } );
+	renderer.setSize( window.innerWidth, window.innerHeight );
+	renderer.setClearColorHex( 0xAAAAAA, 1.0 );
+	renderer.gammaInput = true;
+	renderer.gammaOutput = true;
 	
-	Ka: 0.3,
-	Kd: 0.7,
+	var container = document.getElementById('container');
+	container.appendChild( renderer.domElement );
 
-	Hue:    0.09,
-	Saturation: 0.46,
-	Lightness:    1.0
+	// CAMERA
+
+	camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 1, 80000 );
+	camera.position.set( -1000, 450, -1300 );
+
+	// CONTROLS
+
+	cameraControls = new THREE.OrbitAndPanControls( camera, renderer.domElement );
+	cameraControls.target.set(0, 0, 0);
+	setupGui();
+	
+	fillScene();
+}
+
+// Setup the controls in the upper right
+function setupGui() {
+	
+	effectController = {
+			demoManual: demoManual,
+			useAlt3: useAlt3,
+			updateWorldMatrix: updateWorldMatrix,
+			buildWithSpheres: buildWithSpheres
 
 	};
 
 	var gui = new dat.GUI();
 
-	// material (color)
-
-	gui.add( effectController, "Hue", 0.0, 1.0 );
-	gui.add( effectController, "Saturation", 0.0, 1.0 );
-	gui.add( effectController, "Lightness", 0.0, 1.0 );
-
-	// material (attributes)
-
-	gui.add( effectController, "Ka", 0.0, 1.0 );
-	gui.add( effectController, "Kd", 0.0, 1.0 );*/
+	gui.add( effectController, "demoManual").name("Object3d Adding");
+	gui.add( effectController, "useAlt3").name("Direct Parenting");
+	gui.add( effectController, "updateWorldMatrix").name("Update World Matrix");
+	gui.add( effectController, "buildWithSpheres").name("Spheres");
 
 }
 
-//
+///////////////////////////////////////////////////////////////////////////////
+//Animation methods
+///////////////////////////////////////////////////////////////////////////////
 
 function animate() {
 
@@ -362,3 +402,7 @@ function render() {
 	renderer.render( scene, camera );
 
 }
+
+// Run application
+init();
+animate();
