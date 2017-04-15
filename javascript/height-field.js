@@ -316,7 +316,7 @@ function fillScene() {
 	if (useImage) {
 		if (useImage1) {
 		    // (source file location, scale)
-		    createHeightFieldFromImage('./media/heightField1.jpg', scale);
+		    createHeightFieldFromImage('./media/heightField1.png', scale);
 		}
 		else {
 		    // (source file location, scale)
