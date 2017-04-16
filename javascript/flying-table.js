@@ -6,25 +6,9 @@ pwgl.listOfPressedKeys = [];
 pwgl.ongoingImageLoads = []; 
 var canvas;
 
-function createGLContext(canvas) {
-  var names = ["webgl", "experimental-webgl"];
-  var context = null;
-  for (var i=0; i < names.length; i++) {
-    try {
-      context = canvas.getContext(names[i]);
-    } catch(e) {}
-    if (context) {
-      break;
-    }
-  }
-  if (context) {
-    context.viewportWidth = canvas.width;
-    context.viewportHeight = canvas.height;
-  } else {
-    alert("Failed to create WebGL context!");
-  }
-  return context;
-}
+///////////////////////////////////////////////////////////////////////////////
+//Lighting and shader setup methods
+///////////////////////////////////////////////////////////////////////////////
 
 function loadShaderFromDOM(id) {
   var shaderScript = document.getElementById(id);
@@ -123,17 +107,9 @@ function setupShaders() {
   pwgl.modelViewMatrixStack = [];
 }
 
-function pushModelViewMatrix() {
-  var copyToPush = mat4.create(pwgl.modelViewMatrix);
-  pwgl.modelViewMatrixStack.push(copyToPush);
-}
-
-function popModelViewMatrix() {
-  if (pwgl.modelViewMatrixStack.length == 0) {
-    throw "Error popModelViewMatrix() - Stack was empty ";
-  }
-  pwgl.modelViewMatrix = pwgl.modelViewMatrixStack.pop();
-}
+///////////////////////////////////////////////////////////////////////////////
+//Model buffer setup methods
+///////////////////////////////////////////////////////////////////////////////
 
 function setupFloorBuffers() {   
   pwgl.floorVertexPositionBuffer = gl.createBuffer();
@@ -353,6 +329,15 @@ function setupCubeBuffers() {
   pwgl.CUBE_VERTEX_INDEX_BUF_NUM_ITEMS = 36;
 }
 
+function setupBuffers() {
+  setupFloorBuffers();
+  setupCubeBuffers();
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//Texture setup methods
+///////////////////////////////////////////////////////////////////////////////
+
 function textureFinishedLoading(image, texture) {
   gl.bindTexture(gl.TEXTURE_2D, texture);
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
@@ -394,25 +379,17 @@ function setupTextures() {
   loadImageForTexture("./media/wicker_256.jpg", pwgl.boxTexture);
 }
 
-function setupBuffers() {
-  setupFloorBuffers();
-  setupCubeBuffers();
-}
+///////////////////////////////////////////////////////////////////////////////
+//Model building methods
+///////////////////////////////////////////////////////////////////////////////
 
-function setupLights() {
-  gl.uniform3fv(pwgl.uniformLightPositionLoc, [0.0, 20.0, 0.0]);
-  gl.uniform3fv(pwgl.uniformAmbientLightColorLoc, [0.2, 0.2, 0.2]);
-  gl.uniform3fv(pwgl.uniformDiffuseLightColorLoc, [0.7, 0.7, 0.7]);
-  gl.uniform3fv(pwgl.uniformSpecularLightColorLoc, [0.8, 0.8, 0.8]);
+function pushModelViewMatrix() {
+  var copyToPush = mat4.create(pwgl.modelViewMatrix);
+  pwgl.modelViewMatrixStack.push(copyToPush);
 }
 
 function uploadModelViewMatrixToShader() {
   gl.uniformMatrix4fv(pwgl.uniformMVMatrixLoc, false, pwgl.modelViewMatrix);
-}
-
-function uploadProjectionMatrixToShader() {
-  gl.uniformMatrix4fv(pwgl.uniformProjMatrixLoc, 
-                      false, pwgl.projectionMatrix);
 }
 
 function uploadNormalMatrixToShader() {
@@ -420,6 +397,13 @@ function uploadNormalMatrixToShader() {
   mat4.toInverseMat3(pwgl.modelViewMatrix, normalMatrix);
   mat3.transpose(normalMatrix);
   gl.uniformMatrix3fv(pwgl.uniformNormalMatrixLoc, false, normalMatrix);
+}
+
+function popModelViewMatrix() {
+  if (pwgl.modelViewMatrixStack.length == 0) {
+    throw "Error popModelViewMatrix() - Stack was empty ";
+  }
+  pwgl.modelViewMatrix = pwgl.modelViewMatrixStack.pop();
 }
 
 function drawFloor() {
@@ -545,55 +529,46 @@ function drawTable(){
   popModelViewMatrix();
   
   popModelViewMatrix();
-      
-  // Draw the table legs
-  /*for (var i=-1; i<=1; i+=2) {
-    for (var j= -1; j<=1; j+=2) {
-      //pushModelViewMatrix();
-      mat4.rotate(pwgl.modelViewMatrix, pwgl.angle, [0,0,1], pwgl.modelViewMatrix);
-      mat4.translate(pwgl.modelViewMatrix, [1, 0, 0], pwgl.modelViewMatrix);
-      mat4.rotate(pwgl.modelViewMatrix, Math.PI/2, [0,0,1], pwgl.modelViewMatrix);
-      //mat4.translate(pwgl.modelViewMatrix, [i*1.9, -0.1 , j*1.9], pwgl.modelViewMatrix);
-      mat4.scale(pwgl.modelViewMatrix, [0.1, 1.0, 0.1], pwgl.modelViewMatrix);
-      uploadModelViewMatrixToShader();
-      uploadNormalMatrixToShader();
-      drawCube(pwgl.woodTexture);
-      //popModelViewMatrix();
-    }
-  }  */
 }
 
+///////////////////////////////////////////////////////////////////////////////
+//Animation methods
+///////////////////////////////////////////////////////////////////////////////
 
+// Update the frame and animations
 function draw(currentTime) { 
-  handlePressedDownKeys();
+	handlePressedDownKeys();
   
-  pwgl.requestId = requestAnimationFrame(draw);
-  if (currentTime === undefined) {
-    currentTime = Date.now();
-  }
-  
-  // Update FPS if a second or more has passed since last FPS update
-  if(currentTime - pwgl.previousFrameTimeStamp >= 1000) {
-    pwgl.fpsCounter.innerHTML = pwgl.nbrOfFramesForFPS;
-    pwgl.nbrOfFramesForFPS = 0;
-    pwgl.previousFrameTimeStamp = currentTime;                    
-  } 
+	pwgl.requestId = requestAnimationFrame(draw);
+	if (currentTime === undefined) {
+		currentTime = Date.now();
+	}
+	  
+	  // Update FPS if a second or more has passed since last FPS update
+	if(currentTime - pwgl.previousFrameTimeStamp >= 1000) {
+		pwgl.fpsCounter.innerHTML = pwgl.nbrOfFramesForFPS;
+		pwgl.nbrOfFramesForFPS = 0;
+		pwgl.previousFrameTimeStamp = currentTime;                    
+	} 
  
-  gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
-  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-  mat4.perspective(60, gl.viewportWidth / gl.viewportHeight, 
+	gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
+	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+	mat4.perspective(60, gl.viewportWidth / gl.viewportHeight, 
                    1, 100.0, pwgl.projectionMatrix);
-  mat4.identity(pwgl.modelViewMatrix);
-  mat4.lookAt([8, 12, 8],[0, 0, 0], [0, 1,0], pwgl.modelViewMatrix);
+	mat4.identity(pwgl.modelViewMatrix);
+	mat4.lookAt([8, 12, 8],[0, 0, 0], [0, 1,0], pwgl.modelViewMatrix);
   
-  uploadModelViewMatrixToShader();
-  uploadProjectionMatrixToShader();
-  uploadNormalMatrixToShader();
-  gl.uniform1i(pwgl.uniformSamplerLoc, 0);
+	uploadModelViewMatrixToShader();
+	gl.uniformMatrix4fv(pwgl.uniformProjMatrixLoc, 
+			false, pwgl.projectionMatrix);
+	uploadNormalMatrixToShader();
+	gl.uniform1i(pwgl.uniformSamplerLoc, 0);
   
-  drawFloor();
+	drawFloor();
   
-  //Animate legs, table, and box    
+	//Animate legs, table, and box
+  	
+	// Determine which way and how fast to rotate the table legs to create a flying motion
     if ((pwgl.angle[0] > Math.PI/2) || (pwgl.angle[0] < -Math.PI/4)) {
     	pwgl.legsReverse *= -1;
     	if (pwgl.legsReverse == -1) {
@@ -604,23 +579,28 @@ function draw(currentTime) {
     	}
     }
     
+    // Rotate the table legs
     pwgl.angle[0] += 2*Math.PI/pwgl.speed*pwgl.legsReverse;
     pwgl.angle[1] = -pwgl.angle[0]+Math.PI;
     pwgl.angle[2] = pwgl.angle[0];
     pwgl.angle[3] = -pwgl.angle[0]+Math.PI;
     
     if (pwgl.legsReverse == -1 && pwgl.scale < 3) {
+    	// Shorten the table legs and raise the table as the legs rotate downward
     	pwgl.scale += 0.15;
     	pwgl.tablePosY += 0.1;
     }
     else if (pwgl.legsReverse == 1 && pwgl.scale > 1) {
+    	// Lengthen the table legs and lower the table as the legs rotate upward
     	pwgl.scale -= 0.1;
     	pwgl.tablePosY -= 0.01;
     }
     else {
+    	// The table sinks until the legs flap
     	pwgl.tablePosY -= 0.01;
     }
     
+    // Increase or decrease the speed of the flap of the table legs
     if (pwgl.tablePosY < 1) {
     	pwgl.speed = 100;
     }
@@ -631,18 +611,112 @@ function draw(currentTime) {
     	pwgl.speed = 200;
     }
   
-  // Draw table
-  pushModelViewMatrix();
-  mat4.translate(pwgl.modelViewMatrix, [0.0, 1.1, 0.0], pwgl.modelViewMatrix);
-  uploadModelViewMatrixToShader();
-  uploadNormalMatrixToShader();
-  drawTable();
-  popModelViewMatrix();
+	// Draw table
+	pushModelViewMatrix();
+	mat4.translate(pwgl.modelViewMatrix, [0.0, 1.1, 0.0], pwgl.modelViewMatrix);
+	uploadModelViewMatrixToShader();
+	uploadNormalMatrixToShader();
+	drawTable();
+	popModelViewMatrix();
   
-  // Update number of drawn frames to be able to count fps
-  pwgl.nbrOfFramesForFPS++;
+	// Update number of drawn frames to be able to count fps
+	pwgl.nbrOfFramesForFPS++;
 }
 
+// Move the table back and forth depending on what key the user has pressed
+function handlePressedDownKeys() {
+	if (pwgl.listOfPressedKeys[38]) {
+		 // Arrow up, move table forwards
+		 pwgl.tablePosZ -= 0.1;
+	}
+	if (pwgl.listOfPressedKeys[40]) {
+		 // Arrow down, move table backwards
+		 pwgl.tablePosZ += 0.1;
+	}
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//Initialization methods
+///////////////////////////////////////////////////////////////////////////////
+
+// The method that runs when the webpage opens
+function startup() {
+  canvas = document.getElementById("myGLCanvas");
+  canvas = WebGLDebugUtils.makeLostContextSimulatingCanvas(canvas);
+  
+  // Add event listeners
+  canvas.addEventListener('webglcontextlost', handleContextLost, false);
+  canvas.addEventListener('webglcontextrestored', handleContextRestored, false);
+  document.addEventListener('keydown', handleKeyDown, false);
+  document.addEventListener('keyup', handleKeyUp, false);
+  
+  gl = createGLContext(canvas);
+  init();
+  
+  pwgl.fpsCounter = document.getElementById("fps");
+  
+  // Draw the complete scene  
+  draw();
+}
+
+// Get the canvas to display graphics in webpage
+function createGLContext(canvas) {
+  var names = ["webgl", "experimental-webgl"];
+  var context = null;
+  for (var i=0; i < names.length; i++) {
+    try {
+      context = canvas.getContext(names[i]);
+    } catch(e) {}
+    if (context) {
+      break;
+    }
+  }
+  if (context) {
+    context.viewportWidth = canvas.width;
+    context.viewportHeight = canvas.height;
+  } else {
+    alert("Failed to create WebGL context!");
+  }
+  return context;
+}
+
+//Initialize the scene
+function init() {
+	// Initialization that is performed during first startup, but when the
+	// event webglcontextrestored is received is included in this function.
+	setupShaders(); 
+	setupBuffers();
+	setupLights();  
+	setupTextures();
+	gl.clearColor(0.0, 0.0, 0.0, 1.0);
+	gl.enable(gl.DEPTH_TEST);
+	
+	// Initialize some varibles for the moving box
+	pwgl.angle = new Array();
+	pwgl.angle[0] = 0;
+	pwgl.legsReverse = 1;
+	pwgl.scale = 1.0;
+	pwgl.tablePosY = 1.0;
+	pwgl.tablePosZ = 0.0;
+	pwgl.tableRev = 1;
+	pwgl.speed = 200;
+	// Initialize some variables related to the animation
+	pwgl.nbrOfFramesForFPS = 0;
+	pwgl.previousFrameTimeStamp = Date.now();
+}
+
+function setupLights() {
+  gl.uniform3fv(pwgl.uniformLightPositionLoc, [0.0, 20.0, 0.0]);
+  gl.uniform3fv(pwgl.uniformAmbientLightColorLoc, [0.2, 0.2, 0.2]);
+  gl.uniform3fv(pwgl.uniformDiffuseLightColorLoc, [0.7, 0.7, 0.7]);
+  gl.uniform3fv(pwgl.uniformSpecularLightColorLoc, [0.8, 0.8, 0.8]);
+}
+ 
+///////////////////////////////////////////////////////////////////////////////
+//Event handlers
+///////////////////////////////////////////////////////////////////////////////
+
+// Handle what happens when the application loses access to the GPU
 function handleContextLost(event) {
   event.preventDefault();
   cancelRequestAnimFrame(pwgl.requestId);
@@ -655,88 +729,18 @@ function handleContextLost(event) {
    pwgl.ongoingImageLoads = [];
 }
 
-function init() {
-  // Initialization that is performed during first startup, but when the
-  // event webglcontextrestored is received is included in this function.
-  setupShaders(); 
-  setupBuffers();
-  setupLights();  
-  setupTextures();
-  gl.clearColor(0.0, 0.0, 0.0, 1.0);
-  gl.enable(gl.DEPTH_TEST);
-  
-  // Initialize some varibles for the moving box
-  pwgl.angle = new Array();
-  pwgl.angle[0] = 0;
-  pwgl.legsReverse = 1;
-  pwgl.scale = 1.0;
-  pwgl.tablePosY = 1.0;
-  pwgl.tablePosZ = 0.0;
-  pwgl.tableRev = 1;
-  pwgl.speed = 200;
-  // Initialize some variables related to the animation
-  pwgl.nbrOfFramesForFPS = 0;
-  pwgl.previousFrameTimeStamp = Date.now();
-}
- 
+// Handle what happens when the application regains access to the GPU
 function handleContextRestored(event) {
   init();
   pwgl.requestId = requestAnimFrame(draw,canvas);
 }
 
+// Add a key to the list of pressed keys
 function handleKeyDown(event) {
   pwgl.listOfPressedKeys[event.keyCode] = true;
-  
-  // If you want to have a log for keydown you can uncomment the two lines below.
-  // console.log("keydown - keyCode=%d, charCode=%d", 
-  //             event.keyCode, event.charCode);
 }
 
+// Remove a key from the list of pressed keys
 function handleKeyUp(event) {
   pwgl.listOfPressedKeys[event.keyCode] = false;
-  
-  // If you want to have a log for keyup you can uncomment the two lines below.
-  // console.log("keyup - keyCode=%d, charCode=%d", 
-  //             event.keyCode, event.charCode);
-}
-
-function handleKeyPress(event) {
-  // If you want to have a log for keypress you can uncomment the two lines below.
-  // console.log("keypress - keyCode=%d, charCode=%d", 
-  //             event.keyCode, event.charCode);
-}
-
-function handlePressedDownKeys() {
-  if (pwgl.listOfPressedKeys[38]) {
-    // Arrow up, move table forwards
-    pwgl.tablePosZ -= 0.1;
-  }
-  if (pwgl.listOfPressedKeys[40]) {
-    // Arrow down, move table backwards
-    pwgl.tablePosZ += 0.1;
-  }
-}
-
-function startup() {
-  canvas = document.getElementById("myGLCanvas");
-  canvas = WebGLDebugUtils.makeLostContextSimulatingCanvas(canvas);
-  
-  canvas.addEventListener('webglcontextlost', handleContextLost, false);
-  canvas.addEventListener('webglcontextrestored', handleContextRestored, false);
-  document.addEventListener('keydown', handleKeyDown, false);
-  document.addEventListener('keyup', handleKeyUp, false);
-  document.addEventListener('keypress', handleKeyPress, false); 
-  
-  gl = createGLContext(canvas);
-  init();
-  
-  pwgl.fpsCounter = document.getElementById("fps");
-  
-   // Uncomment the three lines of code below to be able to test lost context
-   // window.addEventListener('mousedown', function() {
-   //  canvas.loseContext();
-   // });
-  
-  // Draw the complete scene  
-  draw();
 }
