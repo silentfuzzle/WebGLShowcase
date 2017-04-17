@@ -195,12 +195,12 @@ function setupGui() {
 	// Height field controls
 	
 	h = gui.addFolder("Height Field");
-	h.add( effectController, "useImage");
-	h.add( effectController, "useImage1");
-	h.add( effectController, "iterative");
-	h.add( effectController, "startingRoughness", 0, 500).step(10);
-	h.add( effectController, "decreaseRoughness", 0, 1).step(0.01);
-	h.add( effectController, "scale", 1, 5).step(1);
+	h.add( effectController, "useImage").name("Use Image");
+	h.add( effectController, "useImage1").name("Use Image1");
+	h.add( effectController, "iterative").name("Use Iterative");
+	h.add( effectController, "startingRoughness", 0, 500).step(10).name("Roughness");
+	h.add( effectController, "decreaseRoughness", 0, 1).step(0.01).name("Smoothing Rate");
+	h.add( effectController, "scale", 1, 5).step(1).name("Scale");
 }
 
 //Resize the application when the user resizes their browser

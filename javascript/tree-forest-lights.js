@@ -81,14 +81,14 @@ function setupGui() {
 	
 	h = gui.addFolder( "Trees" );
 	
-	h.add( effectController, "numTrees", 1, 6).step(1);
-	h.add( effectController, "bottomRadius", 50, maxRadius).step(10);
-	h.add( effectController, "useRandomRadii");
-	h.add( effectController, "totalLayers", 1, 4).step(1);
-	h.add( effectController, "branchReduction", 0.2, 0.8).step(0.1);
-	h.add( effectController, "randomRotation", 10, 90).step(5);
-	h.add( effectController, "treeSpacing", 100, 1000).step(50);
-	h.add( effectController, "treeSpacingRandomness", 0, 1000).step(50);
+	h.add( effectController, "numTrees", 1, 6).step(1).name("Trees");
+	h.add( effectController, "bottomRadius", 50, maxRadius).step(10).name("Tree Radius");
+	h.add( effectController, "useRandomRadii").name("Random Radius");
+	h.add( effectController, "totalLayers", 1, 4).step(1).name("Branch Layers");
+	h.add( effectController, "branchReduction", 0.2, 0.8).step(0.1).name("Reduction Rate");
+	h.add( effectController, "randomRotation", 10, 90).step(5).name("Branch Rotation");
+	h.add( effectController, "treeSpacing", 100, 1000).step(50).name("Tree Spacing");
+	h.add( effectController, "treeSpacingRandomness", 0, 1000).step(50).name("Randomness");
 }
 
 // Resize the application when the user resizes their browser
